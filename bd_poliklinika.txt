@@ -1,0 +1,315 @@
+SET NAMES utf8;
+SET time_zone = '+00:00';
+SET foreign_key_checks = 0;
+SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+
+DELIMITER ;;
+
+DROP PROCEDURE IF EXISTS `calculate_doctor_rating`;;
+CREATE PROCEDURE `calculate_doctor_rating`(IN `id_doctor` int, IN `month` date)
+BEGIN
+    -- Параметри
+    DECLARE total_patients INT;
+    DECLARE total_duration FLOAT;
+    DECLARE success_count INT;
+    DECLARE contraindication_count INT;
+    DECLARE rating FLOAT;
+    
+
+    -- Кількість пацієнтів
+    SELECT COUNT(*) INTO total_patients
+    FROM Diagnoses
+    WHERE treating_doctor_id = id_doctor;
+    
+    -- Кількість пацієнтів з протипоказаннями
+    SELECT COUNT(*) INTO contraindication_count
+    FROM Patients
+    WHERE treating_doctor_id = id_doctor
+    AND contraindications IS NOT NULL;
+
+    -- Обчислення рейтингу
+    SET rating = (total_patients * 10) + (contraindication_count * 15);
+    IF total_duration > 0 THEN
+        SET rating = rating / total_duration;
+    END IF;
+
+    -- Виведення результатів
+    SELECT rating;
+END;;
+
+DROP PROCEDURE IF EXISTS `everybody_calculate_rating`;;
+CREATE PROCEDURE `everybody_calculate_rating`(IN `month` date)
+BEGIN
+DECLARE number INT;
+SET number = 1;
+SELECT COUNT(doctor_id) INTO @count FROM Doctors;
+WHILE number <= @count DO
+CALL calculate_doctor_rating(number, month);
+SET number = number + 1;
+END WHILE;
+END;;
+
+DELIMITER ;
+
+SET NAMES utf8mb4;
+
+DROP TABLE IF EXISTS `Diagnoses`;
+CREATE TABLE `Diagnoses` (
+  `diagnosis_id` int NOT NULL,
+  `patient_id` int DEFAULT NULL,
+  `treating_doctor_id` int DEFAULT NULL,
+  `disease_id` int DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) NOT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`diagnosis_id`),
+  KEY `patient_id` (`patient_id`),
+  KEY `treating_doctor_id` (`treating_doctor_id`),
+  KEY `disease_id` (`disease_id`),
+  CONSTRAINT `diagnoses_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `Patients` (`patient_id`),
+  CONSTRAINT `diagnoses_ibfk_2` FOREIGN KEY (`treating_doctor_id`) REFERENCES `Doctors` (`doctor_id`),
+  CONSTRAINT `diagnoses_ibfk_3` FOREIGN KEY (`disease_id`) REFERENCES `Diseases` (`disease_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Diagnoses` (`diagnosis_id`, `patient_id`, `treating_doctor_id`, `disease_id`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	1,	1,	1,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(2,	2,	1,	2,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(3,	2,	2,	3,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31');
+
+DELIMITER ;;
+
+CREATE TRIGGER `Diagnoses_before_insert` BEFORE INSERT ON `Diagnoses` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `Diagnoses_before_update` BEFORE UPDATE ON `Diagnoses` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
+
+DROP TABLE IF EXISTS `Diseases`;
+CREATE TABLE `Diseases` (
+  `disease_id` int NOT NULL,
+  `disease_name` varchar(100) DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) NOT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`disease_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Diseases` (`disease_id`, `disease_name`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	'Грип',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(2,	'Алергія',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(3,	'Астма',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31');
+
+DELIMITER ;;
+
+CREATE TRIGGER `Diseases_before_insert` BEFORE INSERT ON `Diseases` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `Diseases_before_update` BEFORE UPDATE ON `Diseases` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
+
+DROP TABLE IF EXISTS `Doctors`;
+CREATE TABLE `Doctors` (
+  `doctor_id` int NOT NULL,
+  `last_name` varchar(50) DEFAULT NULL,
+  `first_name` varchar(50) DEFAULT NULL,
+  `specialization` varchar(100) DEFAULT NULL,
+  `address` varchar(100) DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) NOT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`doctor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Doctors` (`doctor_id`, `last_name`, `first_name`, `specialization`, `address`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	'Коваленко',	'Олег',	'Терапевт',	'вул. Медична, 8',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(2,	'Козак',	'Анна',	'Педіатр',	'вул. Паркова, 12',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(3,	'Васильєва',	'Оксана',	'Невролог',	'вул. Гагаріна, 7',	'',	'2023-05-22 21:26:31',	'db_admin@172.19.0.2',	'2023-05-22 21:34:55');
+
+DELIMITER ;;
+
+CREATE TRIGGER `Doctors_before_insert` BEFORE INSERT ON `Doctors` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `Doctors_before_update` BEFORE UPDATE ON `Doctors` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
+
+DROP TABLE IF EXISTS `Medications`;
+CREATE TABLE `Medications` (
+  `medication_id` int NOT NULL,
+  `medication_name` varchar(100) DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) DEFAULT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`medication_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Medications` (`medication_id`, `medication_name`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	'Аспірин',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31'),
+(2,	'Парацетамол',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31'),
+(3,	'Комплексний ліки',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31'),
+(4,	'Лік 1',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31'),
+(5,	'Лік 2',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31'),
+(6,	'Парацетамол',	'',	'2023-05-22 21:26:31',	NULL,	'2023-05-22 21:26:31');
+
+DELIMITER ;;
+
+CREATE TRIGGER `Medications_before_insert` BEFORE INSERT ON `Medications` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `Medications_before_update` BEFORE UPDATE ON `Medications` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
+
+DROP TABLE IF EXISTS `Patients`;
+CREATE TABLE `Patients` (
+  `patient_id` int NOT NULL,
+  `last_name` varchar(50) DEFAULT NULL,
+  `first_name` varchar(50) DEFAULT NULL,
+  `middle_name` varchar(50) DEFAULT NULL,
+  `address` varchar(100) DEFAULT NULL,
+  `contraindications` varchar(200) DEFAULT NULL,
+  `characteristics` varchar(200) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `treating_doctor_id` int DEFAULT NULL,
+  `rating` int DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) NOT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`patient_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Patients` (`patient_id`, `last_name`, `first_name`, `middle_name`, `address`, `contraindications`, `characteristics`, `start_date`, `end_date`, `treating_doctor_id`, `rating`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	'Іванов',	'Іван',	'Іванович',	'вул. Центральна, 10',	'Парацетамол',	'Активний',	'2022-01-01',	'2022-01-15',	3,	90,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(2,	'Петров',	'Олександр',	'Миколайович',	'вул. Сонячна, 5',	'Антибіотики',	'Пасивний',	'2021-06-10',	'2021-06-30',	2,	80,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(3,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(4,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(5,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(6,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(7,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(8,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(9,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(10,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(11,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31'),
+(12,	'Сидоренко',	'Марія',	'Володимирівна',	'вул. Польова, 15',	'Аспірин',	'Активний',	'2023-02-20',	'2023-03-10',	1,	95,	'root@172.18.0.2',	'2023-05-24 06:11:11',	'root@172.18.0.2',	'2023-05-24 06:11:11'),
+(40,	'Петров',	'Олександр',	'Миколайович',	'вул. Сонячна, 5',	'Антибіотики',	'Пасивний',	'2021-06-10',	'2021-06-30',	2,	80,	'root@172.18.0.2',	'2023-05-24 06:25:13',	'root@172.18.0.2',	'2023-05-24 06:25:13');
+
+DELIMITER ;;
+
+CREATE TRIGGER `prevent_exceed_patient_limit` BEFORE INSERT ON `Patients` FOR EACH ROW
+BEGIN
+DECLARE current_patient_count INT;-- Перевірка кількості пацієнтів, які лікує лікар
+SELECT COUNT(*) INTO current_patient_count
+FROM Patients
+WHERE treating_doctor_id = NEW.treating_doctor_id;
+
+-- Викидання помилки, якщо лікар вже лікує 10 пацієнтів
+IF current_patient_count >= 10 THEN
+    SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Лікар не може мати більше 10 пацієнтів одночасно.';
+END IF;
+END;;
+
+CREATE TRIGGER `Patients_before_insert` BEFORE INSERT ON `Patients` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `Patients_before_update` BEFORE UPDATE ON `Patients` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
+
+DROP TABLE IF EXISTS `Prescriptions`;
+CREATE TABLE `Prescriptions` (
+  `prescription_id` int NOT NULL,
+  `patient_id` int DEFAULT NULL,
+  `medication_id` int DEFAULT NULL,
+  `treating_doctor_id` int DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `UCR` varchar(32) NOT NULL,
+  `DCR` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ULC` varchar(32) NOT NULL,
+  `DLC` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`prescription_id`),
+  KEY `patient_id` (`patient_id`),
+  KEY `medication_id` (`medication_id`),
+  KEY `treating_doctor_id` (`treating_doctor_id`),
+  CONSTRAINT `prescriptions_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `Patients` (`patient_id`),
+  CONSTRAINT `prescriptions_ibfk_2` FOREIGN KEY (`medication_id`) REFERENCES `Medications` (`medication_id`),
+  CONSTRAINT `prescriptions_ibfk_3` FOREIGN KEY (`treating_doctor_id`) REFERENCES `Doctors` (`doctor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `Prescriptions` (`prescription_id`, `patient_id`, `medication_id`, `treating_doctor_id`, `start_date`, `end_date`, `UCR`, `DCR`, `ULC`, `DLC`) VALUES
+(1,	1,	1,	1,	'2022-01-02',	'2022-01-10',	'',	'2023-05-22 21:26:31',	'root@172.18.0.2',	'2023-05-24 06:03:55'),
+(2,	1,	2,	1,	'2022-01-05',	'2022-01-15',	'',	'2023-05-22 21:26:31',	'',	'2023-05-22 21:26:31');
+
+DELIMITER ;;
+
+CREATE TRIGGER `Prescriptions_before_insert` BEFORE INSERT ON `Prescriptions` FOR EACH ROW
+SET NEW.UCR = USER(),
+NEW.DCR = NOW(),
+NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+CREATE TRIGGER `prevent_contraindicated_medication` BEFORE INSERT ON `Prescriptions` FOR EACH ROW
+BEGIN
+    DECLARE contraindication_count INT;
+    
+    -- Перевірка наявності протипоказань у пацієнта
+    SELECT COUNT(*) INTO contraindication_count
+    FROM Patients
+    WHERE patient_id = NEW.patient_id
+    AND (
+        contraindications IS NOT NULL
+        OR EXISTS (
+            SELECT 1
+            FROM Medications
+            WHERE medication_id = NEW.medication_id
+            AND FIND_IN_SET(medication_name, contraindications) > 0
+        )
+    );
+    
+    -- Викидання помилки, якщо є протипоказання
+    IF contraindication_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Пацієнт має протипоказання до цього лікарства.';
+    END IF;
+END;;
+
+CREATE TRIGGER `Prescriptions_before_update` BEFORE UPDATE ON `Prescriptions` FOR EACH ROW
+SET NEW.ULC = USER(),
+NEW.DLC = NOW();;
+
+DELIMITER ;
